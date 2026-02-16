@@ -1,7 +1,14 @@
 "use client";
 import { useState } from "react";
 import { aiAPI } from "../lib/api";
-import { Brain, Send, Loader2, TrendingUp, PiggyBank, AlertTriangle } from "lucide-react";
+import {
+  Brain,
+  Send,
+  Loader2,
+  TrendingUp,
+  PiggyBank,
+  AlertTriangle,
+} from "lucide-react";
 
 export default function AIAdvisor() {
   const [isOpen, setIsOpen] = useState(false);
@@ -72,8 +79,18 @@ export default function AIAdvisor() {
               onClick={() => setIsOpen(false)}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -86,13 +103,15 @@ export default function AIAdvisor() {
         <div className="flex-1 overflow-y-auto p-6">
           {/* Quick Questions */}
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Pertanyaan Cepat:</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+              Pertanyaan Cepat:
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {quickQuestions.map((q, index) => (
                 <button
                   key={index}
                   onClick={() => handleAsk(q)}
-                  className="text-left p-3 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                  className="text-gray-500 text-left p-3 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
                 >
                   {q}
                 </button>
@@ -102,7 +121,9 @@ export default function AIAdvisor() {
 
           {/* Custom Question */}
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Pertanyaan Kustom:</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+              Pertanyaan Kustom:
+            </h3>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -110,7 +131,7 @@ export default function AIAdvisor() {
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ketik pertanyaan Anda..."
-                className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="text-gray-500 flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 disabled={loading}
               />
               <button
@@ -135,7 +156,7 @@ export default function AIAdvisor() {
                 <Brain className="w-5 h-5 text-purple-600 mt-1 flex-shrink-0" />
                 <div>
                   <p className="text-gray-800 leading-relaxed">{response}</p>
-                  
+
                   {/* Context Info */}
                   {context && (
                     <div className="mt-4 pt-4 border-t border-purple-200">
@@ -143,19 +164,28 @@ export default function AIAdvisor() {
                         <div className="flex items-center gap-2">
                           <TrendingUp className="w-4 h-4 text-green-600" />
                           <span className="text-gray-600">
-                            Pendapatan: <strong>Rp {context.totalIncome.toLocaleString('id-ID')}</strong>
+                            Pendapatan:{" "}
+                            <strong>
+                              Rp {context.totalIncome.toLocaleString("id-ID")}
+                            </strong>
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="w-4 h-4 text-red-600" />
                           <span className="text-gray-600">
-                            Pengeluaran: <strong>Rp {context.totalExpense.toLocaleString('id-ID')}</strong>
+                            Pengeluaran:{" "}
+                            <strong>
+                              Rp {context.totalExpense.toLocaleString("id-ID")}
+                            </strong>
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <PiggyBank className="w-4 h-4 text-blue-600" />
                           <span className="text-gray-600">
-                            Sisa: <strong>Rp {context.balance.toLocaleString('id-ID')}</strong>
+                            Sisa:{" "}
+                            <strong>
+                              Rp {context.balance.toLocaleString("id-ID")}
+                            </strong>
                           </span>
                         </div>
                       </div>

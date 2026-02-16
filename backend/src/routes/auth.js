@@ -176,7 +176,7 @@ router.get(
       console.log("Frontend URL:", process.env.FRONTEND_URL);
 
       // Redirect to frontend with token
-      const redirectUrl = `${process.env.FRONTEND_URL}/dashboard?token=${token}`;
+      const redirectUrl = `${process.env.FRONTEND_URL}/login?token=${token}`;
       console.log("Final redirect URL:", redirectUrl);
 
       res.redirect(redirectUrl);
