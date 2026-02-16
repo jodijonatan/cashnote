@@ -1,25 +1,28 @@
-// frontend/src/app/dashboard/page.js
 "use client";
 import { useEffect, useState } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Legend,
+  CartesianGrid,
 } from "recharts";
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  LogOut,
+  ArrowRightLeft,
+  TrendingUp,
+  LayoutDashboard,
+} from "lucide-react";
 import { transactionAPI, authAPI } from "../../lib/api";
 import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
-  const [summary, setSummary] = useState({
-    income: 0,
-    expense: 0,
-    balance: 0,
-    totalTransactions: 0,
-  });
+  const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,9 +40,6 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // Get current month's data
       const currentDate = new Date();
       const firstDay = new Date(
         currentDate.getFullYear(),
@@ -65,16 +65,10 @@ export default function Dashboard() {
       setSummary(summaryData.data);
       setChartData(chartResponse.data);
     } catch (err) {
-      console.error("Error fetching dashboard data:", err);
-      setError("Failed to load dashboard data");
+      setError("Gagal memuat data dashboard");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    authAPI.removeToken();
-    router.push("/login");
   };
 
   const formatCurrency = (amount) => {
@@ -85,153 +79,192 @@ export default function Dashboard() {
     }).format(amount);
   };
 
-  if (loading) {
-    return (
-      <div className="p-8 max-w-6xl mx-auto space-y-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-2xl"></div>
-            ))}
-          </div>
-          <div className="h-80 bg-gray-200 rounded-2xl mt-8"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 max-w-6xl mx-auto">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingSkeleton />;
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
-      <header className="flex justify-between items-end">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+    <div className="min-h-screen bg-[#F8F9FB] pb-12">
+      {/* Top Navigation */}
+      <nav className="bg-white border-b border-gray-100 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-indigo-600 p-2 rounded-xl">
+              <LayoutDashboard className="text-white w-5 h-5" />
+            </div>
+            <span className="font-bold text-xl tracking-tight text-gray-900">
+              WalletKu
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/transactions")}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-xl transition-all"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              Transaksi
+            </button>
+            <button
+              onClick={() => {
+                authAPI.removeToken();
+                router.push("/login");
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              Keluar
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-6xl mx-auto px-6 mt-10 space-y-8">
+        {/* Welcome Header */}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight transition-all">
             Halo, Mahasiswa! 👋
           </h1>
-          <p className="text-gray-500">Berikut ringkasan dompetmu bulan ini.</p>
+          <p className="text-gray-500 font-medium">
+            Ini adalah ringkasan finansialmu bulan ini.
+          </p>
         </div>
-        <div className="flex gap-4">
-          <a
-            href="/transactions"
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Transaksi
-          </a>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 bg-black text-white rounded-2xl shadow-sm">
-          <p className="text-sm opacity-70">Total Saldo</p>
-          <h2 className="text-3xl font-mono mt-2">
-            {formatCurrency(summary.balance)}
-          </h2>
-        </div>
-        <div className="p-6 bg-white border border-gray-100 rounded-2xl">
-          <p className="text-sm text-gray-500 font-medium">Pemasukan</p>
-          <h2 className="text-2xl text-green-600 mt-2">
-            + {formatCurrency(summary.income)}
-          </h2>
-        </div>
-        <div className="p-6 bg-white border border-gray-100 rounded-2xl">
-          <p className="text-sm text-gray-500 font-medium">Pengeluaran</p>
-          <h2 className="text-2xl text-red-600 mt-2">
-            - {formatCurrency(summary.expense)}
-          </h2>
-        </div>
-      </div>
-
-      {/* Chart Section */}
-      <div className="bg-white border border-gray-100 p-6 rounded-2xl h-80">
-        <h3 className="font-semibold mb-4">Tren Keuangan</h3>
-        {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `Rp${(value / 1000000).toFixed(1)}jt`}
-              />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: "12px",
-                  border: "none",
-                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                }}
-                formatter={(value, name) => [
-                  formatCurrency(value),
-                  name === "income"
-                    ? "Pemasukan"
-                    : name === "expense"
-                      ? "Pengeluaran"
-                      : "Saldo",
-                ]}
-              />
-              <Legend
-                formatter={(value) =>
-                  value === "income"
-                    ? "Pemasukan"
-                    : value === "expense"
-                      ? "Pengeluaran"
-                      : "Saldo"
-                }
-              />
-              <Line
-                type="monotone"
-                dataKey="income"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={{ fill: "#10b981", r: 4 }}
-                name="income"
-              />
-              <Line
-                type="monotone"
-                dataKey="expense"
-                stroke="#ef4444"
-                strokeWidth={2}
-                dot={{ fill: "#ef4444", r: 4 }}
-                name="expense"
-              />
-              <Line
-                type="monotone"
-                dataKey="balance"
-                stroke="#000"
-                strokeWidth={2}
-                dot={{ fill: "#000", r: 4 }}
-                name="balance"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-full flex items-center justify-center text-gray-500">
-            <p>Belum ada data transaksi bulan ini</p>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Main Balance Card */}
+          <div className="relative overflow-hidden p-8 bg-slate-900 rounded-[32px] shadow-2xl shadow-slate-200 group">
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-8">
+                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
+                  <Wallet className="text-white w-6 h-6" />
+                </div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Total Saldo
+                </span>
+              </div>
+              <h2 className="text-3xl font-bold text-white tracking-tight leading-none mb-2">
+                {formatCurrency(summary.balance)}
+              </h2>
+              <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
+                <TrendingUp className="w-4 h-4" />
+                <span>+4.5% dari bulan lalu</span>
+              </div>
+            </div>
+            {/* Dekorasi Ornamen Bulat */}
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-500 rounded-full blur-[80px] opacity-20 transition-all group-hover:scale-125" />
           </div>
-        )}
+
+          <StatCard
+            label="Pemasukan"
+            value={formatCurrency(summary.income)}
+            type="income"
+            icon={<ArrowUpRight />}
+          />
+          <StatCard
+            label="Pengeluaran"
+            value={formatCurrency(summary.expense)}
+            type="expense"
+            icon={<ArrowDownRight />}
+          />
+        </div>
+
+        {/* Chart Section */}
+        <div className="bg-white border border-gray-100 p-8 rounded-[32px] shadow-sm">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-lg font-bold text-gray-900">
+              Analisis Arus Kas
+            </h3>
+            <select className="bg-gray-50 border-none text-sm font-bold text-gray-600 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+              <option>Bulan Ini</option>
+              <option>Bulan Lalu</option>
+            </select>
+          </div>
+
+          <div className="h-[350px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#f1f5f9"
+                />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 500 }}
+                  dy={10}
+                />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "16px",
+                    border: "none",
+                    boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)",
+                  }}
+                  cursor={{ stroke: "#e2e8f0", strokeWidth: 2 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="income"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorIncome)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="expense"
+                  stroke="#f43f5e"
+                  strokeWidth={3}
+                  fill="transparent"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Sub-komponen Card untuk Statis
+function StatCard({ label, value, type, icon }) {
+  const isIncome = type === "income";
+  return (
+    <div className="p-6 bg-white border border-gray-100 rounded-[32px] shadow-sm hover:shadow-md transition-shadow">
+      <div
+        className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${isIncome ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}
+      >
+        {icon}
       </div>
+      <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">
+        {label}
+      </p>
+      <h2
+        className={`text-2xl font-bold tracking-tight ${isIncome ? "text-gray-900" : "text-gray-900"}`}
+      >
+        {isIncome ? "" : "- "}
+        {value}
+      </h2>
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="p-8 max-w-6xl mx-auto animate-pulse space-y-8">
+      <div className="h-10 bg-gray-200 rounded-xl w-48" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-40 bg-gray-200 rounded-[32px]" />
+        ))}
+      </div>
+      <div className="h-[400px] bg-gray-200 rounded-[32px]" />
     </div>
   );
 }

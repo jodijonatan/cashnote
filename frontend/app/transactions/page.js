@@ -2,6 +2,20 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { transactionAPI, authAPI } from "../../lib/api";
+import {
+  Plus,
+  Search,
+  ArrowLeft,
+  Calendar,
+  Tag,
+  PlusCircle,
+  MinusCircle,
+  X,
+  History,
+  MoreVertical,
+  ArrowUpCircle,
+  ArrowDownCircle,
+} from "lucide-react";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -13,14 +27,22 @@ export default function Transactions() {
     type: "EXPENSE",
     category: "",
     description: "",
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split("T")[0],
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const router = useRouter();
 
   const categories = {
-    EXPENSE: ["Makanan", "Transportasi", "Belanja", "Hiburan", "Kesehatan", "Pendidikan", "Lainnya"],
-    INCOME: ["Gaji", "Hadiah", "Investasi", "Freelance", "Lainnya"]
+    EXPENSE: [
+      "Makanan",
+      "Transportasi",
+      "Belanja",
+      "Hiburan",
+      "Kesehatan",
+      "Pendidikan",
+      "Lainnya",
+    ],
+    INCOME: ["Gaji", "Hadiah", "Investasi", "Freelance", "Lainnya"],
   };
 
   useEffect(() => {
@@ -32,24 +54,19 @@ export default function Transactions() {
       const response = await transactionAPI.getTransactions();
       setTransactions(response.data);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to fetch transactions");
+      setError("Gagal mengambil data transaksi");
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
-    setError("");
-
     try {
       await transactionAPI.addTransaction(formData);
       setFormData({
@@ -57,242 +74,271 @@ export default function Transactions() {
         type: "EXPENSE",
         category: "",
         description: "",
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split("T")[0],
       });
       setShowAddForm(false);
       fetchTransactions();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to add transaction");
+      setError("Gagal menambah transaksi");
     } finally {
       setSubmitLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    authAPI.removeToken();
-    router.push("/login");
-  };
-
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
+  if (loading) return <LoadingSkeleton />;
 
-  if (loading) {
-    return (
-      <div className="p-8 max-w-6xl mx-auto">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded-lg"></div>
+  return (
+    <div className="min-h-screen bg-[#F8F9FB] pb-20">
+      {/* Header Section */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="p-2 hover:bg-gray-50 rounded-full transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">
+              Riwayat Transaksi
+            </h1>
+          </div>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            Transaksi Baru
+          </button>
+        </div>
+      </div>
+
+      <main className="max-w-5xl mx-auto px-6 mt-8">
+        {/* Search & Filter Bar */}
+        <div className="flex flex-col md:flex-row gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cari transaksi atau kategori..."
+              className="w-full pl-11 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm font-medium"
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
+            {["Semua", "Pemasukan", "Pengeluaran"].map((tab) => (
+              <button
+                key={tab}
+                className="px-5 py-2.5 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+              >
+                {tab}
+              </button>
             ))}
           </div>
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Transaksi</h1>
-          <p className="text-gray-500">Kelola semua transaksi keuanganmu</p>
+        {/* Transaction List */}
+        <div className="space-y-4">
+          {transactions.length === 0 ? (
+            <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
+              <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <History className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Belum ada aktivitas
+              </h3>
+              <p className="text-gray-500 text-sm mt-1">
+                Mulai catat transaksi pertama Anda hari ini.
+              </p>
+            </div>
+          ) : (
+            transactions.map((t) => (
+              <div
+                key={t.id}
+                className="group bg-white p-5 rounded-[24px] border border-gray-100 flex items-center justify-between hover:shadow-xl hover:shadow-gray-200/40 transition-all duration-300"
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`p-3 rounded-2xl ${t.type === "INCOME" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}
+                  >
+                    {t.type === "INCOME" ? (
+                      <ArrowUpCircle className="w-6 h-6" />
+                    ) : (
+                      <ArrowDownCircle className="w-6 h-6" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">{t.category}</h4>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs font-medium text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />{" "}
+                        {new Date(t.date).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </span>
+                      {t.description && (
+                        <span className="flex items-center gap-1 border-l pl-3">
+                          <Tag className="w-3 h-3" /> {t.description}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right flex items-center gap-4">
+                  <span
+                    className={`text-lg font-extrabold tracking-tight ${t.type === "INCOME" ? "text-emerald-600" : "text-gray-900"}`}
+                  >
+                    {t.type === "INCOME" ? "+" : "-"} {formatCurrency(t.amount)}
+                  </span>
+                  <button className="p-2 text-gray-300 hover:text-gray-600 rounded-full">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-        <div className="flex gap-4">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-          >
-            + Tambah Transaksi
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
+      </main>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
-
+      {/* Modern Modal for Adding Transaction */}
       {showAddForm && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-4">Tambah Transaksi Baru</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Jumlah
-                </label>
-                <input
-                  type="number"
-                  name="amount"
-                  required
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipe
-                </label>
-                <select
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                >
-                  <option value="EXPENSE">Pengeluaran</option>
-                  <option value="INCOME">Pemasukan</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Kategori
-                </label>
-                <select
-                  name="category"
-                  required
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                >
-                  <option value="">Pilih kategori</option>
-                  {categories[formData.type].map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tanggal
-                </label>
-                <input
-                  type="date"
-                  name="date"
-                  required
-                  value={formData.date}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                />
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowAddForm(false)}
+          />
+          <div className="bg-white w-full max-w-lg rounded-[32px] relative z-10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-xl font-extrabold text-gray-900">
+                Catat Transaksi
+              </h3>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="p-2 hover:bg-white rounded-full transition-colors shadow-sm"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Deskripsi (opsional)
-              </label>
-              <input
-                type="text"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-black focus:border-black"
-                placeholder="Deskripsi transaksi"
-              />
-            </div>
-            <div className="flex gap-4">
+
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-3 p-1 bg-gray-100 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData({ ...formData, type: "EXPENSE", category: "" })
+                  }
+                  className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${formData.type === "EXPENSE" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500"}`}
+                >
+                  <MinusCircle className="w-4 h-4" /> Pengeluaran
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData({ ...formData, type: "INCOME", category: "" })
+                  }
+                  className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${formData.type === "INCOME" ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500"}`}
+                >
+                  <PlusCircle className="w-4 h-4" /> Pemasukan
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
+                    Rp
+                  </span>
+                  <input
+                    type="number"
+                    name="amount"
+                    placeholder="0"
+                    required
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none text-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={formData.amount}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-400 uppercase ml-1">
+                      Kategori
+                    </label>
+                    <select
+                      name="category"
+                      required
+                      className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-none font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={formData.category}
+                      onChange={handleChange}
+                    >
+                      <option value="">Pilih</option>
+                      {categories[formData.type].map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-400 uppercase ml-1">
+                      Tanggal
+                    </label>
+                    <input
+                      type="date"
+                      name="date"
+                      required
+                      className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-none font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={formData.date}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase ml-1">
+                    Deskripsi
+                  </label>
+                  <input
+                    type="text"
+                    name="description"
+                    placeholder="Contoh: Makan siang bareng teman"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-none font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={formData.description}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={submitLoading}
-                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all disabled:opacity-50"
               >
-                {submitLoading ? "Menyimpan..." : "Simpan"}
+                {submitLoading ? "Memproses..." : "Simpan Transaksi"}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Batal
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      <div className="bg-white border border-gray-200 rounded-lg">
-        {transactions.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <p>Belum ada transaksi</p>
-            <p className="text-sm mt-2">Klik "Tambah Transaksi" untuk memulai</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tanggal
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Kategori
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Deskripsi
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipe
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Jumlah
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {transactions.map((transaction) => (
-                  <tr key={transaction.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(transaction.date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {transaction.category}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {transaction.description || "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        transaction.type === 'INCOME' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {transaction.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran'}
-                      </span>
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                      transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {transaction.type === 'INCOME' ? '+' : '-'} {formatCurrency(transaction.amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+function LoadingSkeleton() {
+  return (
+    <div className="p-8 max-w-5xl mx-auto animate-pulse">
+      <div className="h-10 bg-gray-200 rounded-xl w-48 mb-12" />
+      <div className="space-y-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-24 bg-gray-100 rounded-[24px]" />
+        ))}
       </div>
     </div>
   );
