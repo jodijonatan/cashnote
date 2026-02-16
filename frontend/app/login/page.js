@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI } from "../../lib/api";
+import { Chrome } from "lucide-react";
 import { Mail, Lock, Loader2, ArrowRight, LayoutDashboard } from "lucide-react";
 
 export default function Login() {
@@ -9,6 +10,60 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    console.log("=== Login Page useEffect ===");
+
+    // Check for existing token first
+    const existingToken = authAPI.getToken();
+    console.log("Existing token:", existingToken);
+
+    if (existingToken) {
+      console.log("Redirecting to dashboard with existing token...");
+      router.push("/dashboard");
+      return;
+    }
+
+    // Check for Google OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+    const error = urlParams.get("error");
+
+    console.log("URL params - Token:", token, "Error:", error);
+    console.log("Current URL:", window.location.href);
+
+    if (token) {
+      console.log("Processing OAuth token...");
+      // Store token and redirect
+      authAPI.setToken(token);
+      console.log("Token stored, verifying...");
+
+      // Verify token stored
+      const storedToken = authAPI.getToken();
+      console.log(
+        "Stored token verification:",
+        storedToken ? "SUCCESS" : "FAILED",
+      );
+
+      // Clear URL params to prevent re-triggering
+      window.history.replaceState({}, document.title, window.location.pathname);
+      console.log("URL cleaned, redirecting to dashboard...");
+      router.push("/dashboard");
+      return;
+    }
+
+    if (error) {
+      console.log("OAuth Error:", error);
+      setError("Login dengan Google gagal. Silakan coba lagi.");
+      // Clear error from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [router]);
+
+  const handleGoogleLogin = () => {
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/auth/google`;
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -146,7 +201,10 @@ export default function Login() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-3">
-              <button className="w-full inline-flex justify-center py-3 px-4 rounded-2xl border border-gray-100 bg-white text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full inline-flex justify-center py-3 px-4 rounded-2xl border border-gray-100 bg-white text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
+              >
                 <img
                   className="h-5 w-5 mr-2"
                   src="https://www.svgrepo.com/show/475656/google-color.svg"

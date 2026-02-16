@@ -10,14 +10,30 @@
 
 Cashnote is a comprehensive personal finance management web application that helps you track your income and expenses with an intuitive dashboard and powerful analytics tools.
 
-## 🚀 Features
+## Fitur
 
-- **📊 Financial Dashboard** - Visual overview of your financial health with interactive charts showing spending trends
-- **💰 Transaction Management** - Easily add, view, and manage income and expense transactions
-- **🔐 Secure Authentication** - User registration and login with JWT-based authentication
-- **📱 Responsive Design** - Fully responsive interface that works seamlessly on desktop and mobile devices
-- **🎨 Modern UI** - Clean and modern interface built with TailwindCSS
-- **📈 Analytics** - Transaction summaries and chart data for better financial insights
+- 📊 Dashboard dengan grafik tren keuangan
+- 💰### Transactions
+- `GET /api/transactions` - Get all transactions
+- `POST /api/transactions` - Add new transaction
+- `PUT /api/transactions/:id` - Update transaction
+- `DELETE /api/transactions/:id` - Delete transaction
+- `GET /api/transactions/summary` - Get transaction summary
+- `GET /api/transactions/chart` - Get chart data
+
+### AI Financial Advisor
+
+- `POST /api/ai/advisor` - Get AI financial advice based on transaction data
+
+### Authentication
+
+- `POST /api/auth/register` - Register user baru
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/google` - Initiate Google OAuth
+- `GET /api/auth/google/callback` - Google OAuth callback
+- 📱 Responsive design
+- 🎨 Modern UI dengan TailwindCSS
+- 📈 Analytics - Transaction summaries and chart data for better financial insights
 
 ## 🛠 Tech Stack
 
@@ -81,6 +97,11 @@ DATABASE_URL="postgresql://username:password@localhost:5432/cashnote_db"
 JWT_SECRET="your-super-secret-jwt-key"
 PORT=5000
 FRONTEND_URL="http://localhost:3000"
+
+# Google OAuth (dapatkan dari Google Cloud Console)
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_CALLBACK_URL="http://localhost:5000/api/auth/google/callback"
 ```
 
 ```

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { transactionAPI, authAPI } from "../../lib/api";
 import {
@@ -15,13 +15,23 @@ import {
   MoreVertical,
   ArrowUpCircle,
   ArrowDownCircle,
+  Trash2,
+  Edit2,
 } from "lucide-react";
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
+
+  // States for Search & Filter
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("Semua");
+
+  // States for Form Modal
+  const [showForm, setShowForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentId, setCurrentId] = useState(null);
   const [formData, setFormData] = useState({
     amount: "",
     type: "EXPENSE",
@@ -29,6 +39,10 @@ export default function Transactions() {
     description: "",
     date: new Date().toISOString().split("T")[0],
   });
+
+  // State for Dropdown
+  const [openMenuId, setOpenMenuId] = useState(null);
+
   const [submitLoading, setSubmitLoading] = useState(false);
   const router = useRouter();
 
@@ -60,26 +74,83 @@ export default function Transactions() {
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // --- Logic Search & Filter ---
+  const filteredTransactions = useMemo(() => {
+    return transactions
+      .filter((t) => {
+        const matchesTab =
+          activeTab === "Semua" ||
+          (activeTab === "Pemasukan" && t.type === "INCOME") ||
+          (activeTab === "Pengeluaran" && t.type === "EXPENSE");
+
+        const matchesSearch =
+          t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (t.description &&
+            t.description.toLowerCase().includes(searchTerm.toLowerCase()));
+
+        return matchesTab && matchesSearch;
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [transactions, searchTerm, activeTab]);
+
+  // --- Logic Actions ---
+  const handleOpenAdd = () => {
+    setIsEditing(false);
+    setFormData({
+      amount: "",
+      type: "EXPENSE",
+      category: "",
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+    });
+    setShowForm(true);
+  };
+
+  const handleOpenEdit = (t) => {
+    setIsEditing(true);
+    setCurrentId(t.id);
+    setFormData({
+      amount: t.amount,
+      type: t.type,
+      category: t.category,
+      description: t.description || "",
+      date: t.date.split("T")[0],
+    });
+    setShowForm(true);
+    setOpenMenuId(null);
+  };
+
+  const handleDelete = async (id) => {
+    if (confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) {
+      try {
+        const response = await transactionAPI.deleteTransaction(id);
+
+        // Jika berhasil, update state lokal agar data hilang dari layar
+        setTransactions(transactions.filter((t) => t.id !== id));
+        alert("Transaksi berhasil dihapus!");
+      } catch (err) {
+        // Tampilkan pesan error asli dari backend
+        const errMsg =
+          err.response?.data?.message || "Gagal menghapus transaksi";
+        console.error("Detail Error:", err.response);
+        alert(errMsg);
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitLoading(true);
     try {
-      await transactionAPI.addTransaction(formData);
-      setFormData({
-        amount: "",
-        type: "EXPENSE",
-        category: "",
-        description: "",
-        date: new Date().toISOString().split("T")[0],
-      });
-      setShowAddForm(false);
+      if (isEditing) {
+        await transactionAPI.updateTransaction(currentId, formData); // Pastikan fungsi ini ada
+      } else {
+        await transactionAPI.addTransaction(formData);
+      }
+      setShowForm(false);
       fetchTransactions();
     } catch (err) {
-      setError("Gagal menambah transaksi");
+      setError("Gagal menyimpan transaksi");
     } finally {
       setSubmitLoading(false);
     }
@@ -112,11 +183,10 @@ export default function Transactions() {
             </h1>
           </div>
           <button
-            onClick={() => setShowAddForm(true)}
+            onClick={handleOpenAdd}
             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
           >
-            <Plus className="w-4 h-4" />
-            Transaksi Baru
+            <Plus className="w-4 h-4" /> Transaksi Baru
           </button>
         </div>
       </div>
@@ -128,7 +198,9 @@ export default function Transactions() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Cari transaksi atau kategori..."
+              placeholder="Cari kategori atau deskripsi..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-11 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-sm font-medium"
             />
           </div>
@@ -136,7 +208,12 @@ export default function Transactions() {
             {["Semua", "Pemasukan", "Pengeluaran"].map((tab) => (
               <button
                 key={tab}
-                className="px-5 py-2.5 bg-white border border-gray-100 rounded-2xl text-sm font-bold text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                onClick={() => setActiveTab(tab)}
+                className={`px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === tab
+                    ? "bg-slate-900 text-white shadow-lg"
+                    : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+                }`}
               >
                 {tab}
               </button>
@@ -146,23 +223,21 @@ export default function Transactions() {
 
         {/* Transaction List */}
         <div className="space-y-4">
-          {transactions.length === 0 ? (
+          {filteredTransactions.length === 0 ? (
             <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
-              <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <History className="w-8 h-8 text-gray-300" />
-              </div>
+              <History className="w-12 h-12 text-gray-200 mx-auto mb-4" />
               <h3 className="text-lg font-bold text-gray-900">
-                Belum ada aktivitas
+                Tidak ada transaksi ditemukan
               </h3>
               <p className="text-gray-500 text-sm mt-1">
-                Mulai catat transaksi pertama Anda hari ini.
+                Coba ubah kata kunci atau filter Anda.
               </p>
             </div>
           ) : (
-            transactions.map((t) => (
+            filteredTransactions.map((t) => (
               <div
                 key={t.id}
-                className="group bg-white p-5 rounded-[24px] border border-gray-100 flex items-center justify-between hover:shadow-xl hover:shadow-gray-200/40 transition-all duration-300"
+                className="group bg-white p-5 rounded-[24px] border border-gray-100 flex items-center justify-between hover:shadow-md transition-all relative"
               >
                 <div className="flex items-center gap-4">
                   <div
@@ -192,15 +267,42 @@ export default function Transactions() {
                     </div>
                   </div>
                 </div>
-                <div className="text-right flex items-center gap-4">
+
+                <div className="flex items-center gap-4">
                   <span
                     className={`text-lg font-extrabold tracking-tight ${t.type === "INCOME" ? "text-emerald-600" : "text-gray-900"}`}
                   >
                     {t.type === "INCOME" ? "+" : "-"} {formatCurrency(t.amount)}
                   </span>
-                  <button className="p-2 text-gray-300 hover:text-gray-600 rounded-full">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+
+                  {/* Actions Menu */}
+                  <div className="relative">
+                    <button
+                      onClick={() =>
+                        setOpenMenuId(openMenuId === t.id ? null : t.id)
+                      }
+                      className="p-2 text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+
+                    {openMenuId === t.id && (
+                      <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-2xl shadow-xl z-30 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                        <button
+                          onClick={() => handleOpenEdit(t)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                        >
+                          <Edit2 className="w-4 h-4" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(t.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-rose-600 hover:bg-rose-50 border-t border-gray-50"
+                        >
+                          <Trash2 className="w-4 h-4" /> Hapus
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -208,21 +310,21 @@ export default function Transactions() {
         </div>
       </main>
 
-      {/* Modern Modal for Adding Transaction */}
-      {showAddForm && (
+      {/* Modern Modal for Add/Update */}
+      {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowAddForm(false)}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setShowForm(false)}
           />
-          <div className="bg-white w-full max-w-lg rounded-[32px] relative z-10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+          <div className="bg-white w-full max-w-lg rounded-[32px] relative z-10 shadow-2xl animate-in zoom-in duration-200">
+            <div className="p-8 border-b border-gray-50 flex justify-between items-center">
               <h3 className="text-xl font-extrabold text-gray-900">
-                Catat Transaksi
+                {isEditing ? "Edit Transaksi" : "Catat Transaksi"}
               </h3>
               <button
-                onClick={() => setShowAddForm(false)}
-                className="p-2 hover:bg-white rounded-full transition-colors shadow-sm"
+                onClick={() => setShowForm(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -252,7 +354,7 @@ export default function Transactions() {
 
               <div className="space-y-4">
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-xl">
                     Rp
                   </span>
                   <input
@@ -260,9 +362,12 @@ export default function Transactions() {
                     name="amount"
                     placeholder="0"
                     required
-                    className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none text-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    autoFocus
+                    className="w-full pl-14 pr-4 py-5 bg-gray-50 rounded-2xl border-none text-3xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
                     value={formData.amount}
-                    onChange={handleChange}
+                    onChange={(e) =>
+                      setFormData({ ...formData, amount: e.target.value })
+                    }
                   />
                 </div>
 
@@ -274,9 +379,11 @@ export default function Transactions() {
                     <select
                       name="category"
                       required
-                      className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-none font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-none font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                       value={formData.category}
-                      onChange={handleChange}
+                      onChange={(e) =>
+                        setFormData({ ...formData, category: e.target.value })
+                      }
                     >
                       <option value="">Pilih</option>
                       {categories[formData.type].map((cat) => (
@@ -296,7 +403,9 @@ export default function Transactions() {
                       required
                       className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-none font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                       value={formData.date}
-                      onChange={handleChange}
+                      onChange={(e) =>
+                        setFormData({ ...formData, date: e.target.value })
+                      }
                     />
                   </div>
                 </div>
@@ -308,10 +417,12 @@ export default function Transactions() {
                   <input
                     type="text"
                     name="description"
-                    placeholder="Contoh: Makan siang bareng teman"
+                    placeholder="Contoh: Makan siang"
                     className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-none font-medium text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                     value={formData.description}
-                    onChange={handleChange}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -319,9 +430,13 @@ export default function Transactions() {
               <button
                 type="submit"
                 disabled={submitLoading}
-                className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all disabled:opacity-50"
+                className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
               >
-                {submitLoading ? "Memproses..." : "Simpan Transaksi"}
+                {submitLoading
+                  ? "Memproses..."
+                  : isEditing
+                    ? "Perbarui Transaksi"
+                    : "Simpan Transaksi"}
               </button>
             </form>
           </div>

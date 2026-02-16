@@ -14,13 +14,19 @@
     "dotenv": "^16.3.1",
     "@prisma/client": "^5.7.1",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0"
   },
   "devDependencies": {
     "prisma": "^5.7.1",
     "nodemon": "^3.0.2"
   },
-  "keywords": ["cashnote", "finance", "api"],
+  "keywords": [
+    "cashnote",
+    "finance",
+    "api"
+  ],
   "author": "",
   "license": "MIT"
 }

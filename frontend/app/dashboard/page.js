@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { transactionAPI, authAPI } from "../../lib/api";
+import AIAdvisor from "../../components/AIAdvisor";
 import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
@@ -29,11 +30,17 @@ export default function Dashboard() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log("=== Dashboard useEffect ===");
     const token = authAPI.getToken();
+    console.log("Dashboard token check:", token);
+
     if (!token) {
+      console.log("No token found, redirecting to login...");
       router.push("/login");
       return;
     }
+
+    console.log("Token found, fetching dashboard data...");
     fetchDashboardData();
   }, [router]);
 
@@ -84,14 +91,14 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[#F8F9FB] pb-12">
       {/* Top Navigation */}
-      <nav className="bg-white border-b border-gray-100 sticky top-0 z-10">
+      <nav className="bg-white border-b border-gray-100 sticky top-0 z-11">
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-2 rounded-xl">
               <LayoutDashboard className="text-white w-5 h-5" />
             </div>
             <span className="font-bold text-xl tracking-tight text-gray-900">
-              WalletKu
+              Cash Note
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -228,6 +235,9 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* AI Advisor Component */}
+      <AIAdvisor />
     </div>
   );
 }
