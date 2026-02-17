@@ -21,9 +21,20 @@ import {
 import { transactionAPI, authAPI } from "../../lib/api";
 import AIAdvisor from "../../components/AIAdvisor";
 import { useRouter } from "next/navigation";
+import { Target } from "lucide-react";
 
 export default function Dashboard() {
-  const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
+  const [summary, setSummary] = useState({
+    income: 0,
+    expense: 0,
+    balance: 0,
+    totalTransactions: 0,
+    comparison: {
+      incomeChange: 0,
+      expenseChange: 0,
+      balanceChange: 0,
+    },
+  });
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -86,6 +97,19 @@ export default function Dashboard() {
     }).format(amount);
   };
 
+  const formatPercentage = (change) => {
+    const isPositive = change >= 0;
+    const color = isPositive ? "text-green-600" : "text-red-600";
+    const sign = isPositive ? "+" : "";
+
+    return (
+      <span className={color}>
+        {sign}
+        {change.toFixed(1)}%
+      </span>
+    );
+  };
+
   if (loading) return <LoadingSkeleton />;
 
   return (
@@ -102,6 +126,13 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/targets")}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all"
+            >
+              <Target className="w-4 h-4" />
+              Targets
+            </button>
             <button
               onClick={() => router.push("/transactions")}
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-xl transition-all"
@@ -136,27 +167,27 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Main Balance Card */}
-          <div className="relative overflow-hidden p-8 bg-slate-900 rounded-[32px] shadow-2xl shadow-slate-200 group">
-            <div className="relative z-10">
-              <div className="flex justify-between items-start mb-8">
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                  <Wallet className="text-white w-6 h-6" />
-                </div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Total Saldo
+          <div className="p-6 bg-black text-white rounded-2xl shadow-sm">
+            <p className="text-sm opacity-70">Total Saldo</p>
+            <h2 className="text-3xl font-mono mt-2">
+              {formatCurrency(summary.balance)}
+            </h2>
+            <div className="mt-2 text-sm">
+              {/* PERBAIKAN: Tambahkan optional chaining (?.) */}
+              {summary?.comparison?.balanceChange !== 0 && (
+                <span
+                  className={
+                    summary?.comparison?.balanceChange >= 0
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }
+                >
+                  {summary?.comparison?.balanceChange >= 0 ? "↑" : "↓"}{" "}
+                  {Math.abs(summary?.comparison?.balanceChange || 0).toFixed(1)}
+                  % dari bulan lalu
                 </span>
-              </div>
-              <h2 className="text-3xl font-bold text-white tracking-tight leading-none mb-2">
-                {formatCurrency(summary.balance)}
-              </h2>
-              <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
-                <TrendingUp className="w-4 h-4" />
-                <span>+4.5% dari bulan lalu</span>
-              </div>
+              )}
             </div>
-            {/* Dekorasi Ornamen Bulat */}
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-500 rounded-full blur-[80px] opacity-20 transition-all group-hover:scale-125" />
           </div>
 
           <StatCard
@@ -164,12 +195,17 @@ export default function Dashboard() {
             value={formatCurrency(summary.income)}
             type="income"
             icon={<ArrowUpRight />}
+            // PERBAIKAN: Tambahkan optional chaining
+            change={summary?.comparison?.incomeChange}
           />
+
           <StatCard
             label="Pengeluaran"
             value={formatCurrency(summary.expense)}
             type="expense"
             icon={<ArrowDownRight />}
+            // PERBAIKAN: Tambahkan optional chaining
+            change={summary?.comparison?.expenseChange}
           />
         </div>
 
@@ -186,7 +222,12 @@ export default function Dashboard() {
           </div>
 
           <div className="h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              minHeight={undefined}
+            >
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -242,8 +283,8 @@ export default function Dashboard() {
   );
 }
 
-// Sub-komponen Card untuk Statis
-function StatCard({ label, value, type, icon }) {
+// Sub-komponen Card untuk Statistik
+function StatCard({ label, value, type, icon, change }) {
   const isIncome = type === "income";
   return (
     <div className="p-6 bg-white border border-gray-100 rounded-[32px] shadow-sm hover:shadow-md transition-shadow">
@@ -258,9 +299,17 @@ function StatCard({ label, value, type, icon }) {
       <h2
         className={`text-2xl font-bold tracking-tight ${isIncome ? "text-gray-900" : "text-gray-900"}`}
       >
-        {isIncome ? "" : "- "}
+        {isIncome ? "" : "-"}
         {value}
       </h2>
+      {change !== undefined && (
+        <div className="mt-2 text-sm">
+          <span className={change >= 0 ? "text-green-600" : "text-red-600"}>
+            {change >= 0 ? "↑" : "↓"} {Math.abs(change).toFixed(1)}% dari bulan
+            lalu
+          </span>
+        </div>
+      )}
     </div>
   );
 }

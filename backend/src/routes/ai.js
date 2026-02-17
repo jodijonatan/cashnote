@@ -1,138 +1,227 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const express = require("express");
+const { PrismaClient } = require("@prisma/client");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { protect } = require("../middleware/auth");
+
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Middleware to authenticate user
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// Initialize Gemini AI
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
 
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, decoded) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-    req.user = { id: decoded.userId };
-    next();
-  });
-};
-
-// AI Financial Advisor endpoint
-router.post('/advisor', authenticateToken, async (req, res) => {
+// Get financial advice from Gemini
+router.post("/advisor", protect, async (req, res) => {
   try {
     const { question } = req.body;
+    const userId = req.user.userId;
 
-    if (!question) {
-      return res.status(400).json({ error: 'Question is required' });
+    console.log("AI Advisor Request:", { question, userId });
+
+    if (!genAI) {
+      console.log("Gemini API not configured");
+      return res.status(500).json({
+        error:
+          "Gemini API not configured. Please add GEMINI_API_KEY to environment variables.",
+        details: "GEMINI_API_KEY is missing",
+      });
     }
 
-    // Get user's transaction data for analysis
-    const currentMonth = new Date();
-    const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    if (!question || question.trim() === "") {
+      return res.status(400).json({
+        error: "Question is required",
+      });
+    }
+
+    // Get user's financial data
+    const transactions = await prisma.transaction.findMany({
+      where: { userId },
+      orderBy: { date: "desc" },
+      take: 50, // Last 50 transactions
+    });
+
+    console.log("Found transactions:", transactions.length);
+
+    if (transactions.length === 0) {
+      return res.json({
+        advice:
+          "Kamu belum memiliki data transaksi. Mulai dengan menambahkan transaksi untuk mendapatkan saran keuangan yang personal.",
+        context: {
+          totalIncome: 0,
+          totalExpense: 0,
+          balance: 0,
+          transactionCount: 0,
+        },
+      });
+    }
+
+    // Calculate financial metrics
+    const totalIncome = transactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpense = transactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const balance = totalIncome - totalExpense;
+    const avgExpense =
+      totalExpense /
+      (transactions.filter((t) => t.type === "expense").length || 1);
+
+    // Get recent transactions for context
+    const recentTransactions = transactions.slice(0, 10).map((t) => ({
+      description: t.description,
+      amount: t.amount,
+      type: t.type,
+      category: t.category,
+      date: t.date,
+    }));
+
+    // Create context for Gemini
+    const context = `
+      User Financial Profile:
+      - Total Income: Rp ${totalIncome.toLocaleString("id-ID")}
+      - Total Expenses: Rp ${totalExpense.toLocaleString("id-ID")}
+      - Current Balance: Rp ${balance.toLocaleString("id-ID")}
+      - Average Transaction: Rp ${avgExpense.toLocaleString("id-ID")}
+      
+      Recent Transactions:
+      ${recentTransactions
+        .map(
+          (t) =>
+            `- ${t.description} (${t.type}): Rp ${t.amount.toLocaleString("id-ID")} [${t.category}]`,
+        )
+        .join("\n")}
+      
+      User Question: ${question}
+      
+      Please provide financial advice in Bahasa Indonesia. Be specific, practical, and consider the user's actual spending patterns.
+      Keep the response concise but comprehensive (max 150 words).
+    `;
+
+    console.log("Calling Gemini API...");
+
+    // Get Gemini response
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(context);
+    const response = await result.response;
+    const advice = response.text();
+
+    console.log("Gemini response received");
+
+    res.json({
+      advice: advice.trim(),
+      context: {
+        totalIncome,
+        totalExpense,
+        balance,
+        transactionCount: transactions.length,
+      },
+    });
+  } catch (error) {
+    console.error("AI Advisor Error:", error);
+
+    // More specific error handling
+    if (error.message.includes("API_KEY")) {
+      return res.status(500).json({
+        error: "Invalid Gemini API key. Please check your GEMINI_API_KEY.",
+        details: error.message,
+      });
+    }
+
+    if (error.message.includes("quota")) {
+      return res.status(429).json({
+        error: "API quota exceeded. Please try again later.",
+        details: error.message,
+      });
+    }
+
+    res.status(500).json({
+      error: "Failed to get financial advice",
+      details: error.message,
+    });
+  }
+});
+
+// Analyze spending patterns
+router.post("/analyze", protect, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    if (!genAI) {
+      return res.status(500).json({
+        error:
+          "Gemini API not configured. Please add GEMINI_API_KEY to environment variables.",
+      });
+    }
+
+    // Get last 30 days of transactions
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const transactions = await prisma.transaction.findMany({
       where: {
-        userId: req.user.id,
-        date: {
-          gte: firstDay,
-          lte: lastDay,
-        },
+        userId,
+        date: { gte: thirtyDaysAgo },
       },
+      orderBy: { date: "desc" },
     });
 
-    // Calculate financial metrics
-    const income = transactions
-      .filter(t => t.type === 'INCOME')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const expense = transactions
-      .filter(t => t.type === 'EXPENSE')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const balance = income - expense;
-
-    // Group expenses by category
+    // Group by category
     const expensesByCategory = transactions
-      .filter(t => t.type === 'EXPENSE')
+      .filter((t) => t.type === "expense")
       .reduce((acc, t) => {
         acc[t.category] = (acc[t.category] || 0) + t.amount;
         return acc;
       }, {});
 
-    // Find top expense category
-    const topCategory = Object.entries(expensesByCategory)
-      .sort(([,a], [,b]) => b - a)[0];
+    // Create analysis context
+    const context = `
+      Analyze this user's spending patterns over the last 30 days:
+      
+      Total Expenses: Rp ${Object.values(expensesByCategory)
+        .reduce((sum, amount) => sum + amount, 0)
+        .toLocaleString("id-ID")}
+      
+      Spending by Category:
+      ${Object.entries(expensesByCategory)
+        .map(
+          ([category, amount]) =>
+            `- ${category}: Rp ${amount.toLocaleString("id-ID")}`,
+        )
+        .join("\n")}
+      
+      Please provide insights about:
+      1. Top spending categories
+      2. Potential areas for cost reduction
+      3. Unusual spending patterns
+      4. Recommendations for better budgeting
+      
+      Response in Bahasa Indonesia, max 120 words.
+    `;
 
-    // Create context for AI
-    const financialContext = {
-      totalIncome: income,
-      totalExpense: expense,
-      balance: balance,
-      savingsRate: income > 0 ? ((income - expense) / income * 100) : 0,
-      topExpenseCategory: topCategory ? topCategory[0] : null,
-      topExpenseAmount: topCategory ? topCategory[1] : 0,
-      transactionCount: transactions.length,
-      month: currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-    };
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(context);
+    const response = await result.response;
+    const analysis = response.text();
 
-    // AI Response logic (simplified - in production you'd use real AI API)
-    let aiResponse = generateFinancialAdvice(question, financialContext);
-
-    res.json({ 
-      question,
-      response: aiResponse,
-      context: financialContext
+    res.json({
+      analysis: analysis.trim(),
+      expensesByCategory,
+      totalExpenses: Object.values(expensesByCategory).reduce(
+        (sum, amount) => sum + amount,
+        0,
+      ),
     });
-
   } catch (error) {
-    console.error('AI Advisor error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("AI Analysis Error:", error);
+    res.status(500).json({
+      error: "Failed to analyze spending patterns",
+      details: error.message,
+    });
   }
 });
-
-// Simple AI response generator (in production, integrate with OpenAI/Gemini)
-function generateFinancialAdvice(question, context) {
-  const questionLower = question.toLowerCase();
-  
-  // Advice patterns based on common questions
-  if (questionLower.includes('sisa') || questionLower.includes('saldo')) {
-    return `Berdasarkan data bulan ${context.month}, kamu memiliki sisa saldo Rp ${context.balance.toLocaleString('id-ID')}. ${context.balance > 0 ? 'Bagus! Kamu berhasil menabung.' : 'Kamu perlu mengurangi pengeluaran.'}`;
-  }
-  
-  if (questionLower.includes('pengeluaran') || questionLower.includes('belanja')) {
-    const topCategoryPercent = context.totalIncome > 0 ? (context.topExpenseAmount / context.totalIncome * 100) : 0;
-    return `Pengeluaran terbesarmu bulan ini adalah ${context.topExpenseCategory} sebesar Rp ${context.topExpenseAmount.toLocaleString('id-ID')} (${topCategoryPercent.toFixed(1)}% dari pendapatan). ${topCategoryPercent > 30 ? 'Ini cukup besar! Pertimbangkan untuk mengurangi pengeluaran di kategori ini.' : 'Masih dalam batas wajar.'}`;
-  }
-  
-  if (questionLower.includes('tabungan') || questionLower.includes('investasi')) {
-    const savingsRate = context.savingsRate;
-    if (savingsRate < 20) {
-      return `Tingkat tabunganmu saat ini ${savingsRate.toFixed(1)}%. Disarankan untuk menabung minimal 20% pendapatan. Coba kurangi pengeluaran di ${context.topExpenseCategory} atau cari cara untuk meningkatkan pendapatan.`;
-    } else if (savingsRate < 30) {
-      return `Tingkat tabunganmu ${savingsRate.toFixed(1)}%. Cukup baik! Pertimbangkan untuk mengalokasikan sebagian tabungan ke investasi dengan return lebih tinggi.`;
-    } else {
-      return `Luar biasa! Tingkat tabunganmu ${savingsRate.toFixed(1)}%. Kamu bisa mempertimbangkan untuk diversifikasi investasi atau mencapai target keuangan jangka panjang.`;
-    }
-  }
-  
-  if (questionLower.includes('saran') || questionLower.includes('advice')) {
-    if (context.balance < 0) {
-      return `Kamu mengalami defisit Rp ${Math.abs(context.balance).toLocaleString('id-ID')} bulan ini. Fokus untuk mengurangi pengeluaran di ${context.topExpenseCategory} dan cari cara untuk menambah pendapatan.`;
-    } else if (context.savingsRate < 10) {
-      return `Tingkat tabunganmu rendah (${context.savingsRate.toFixed(1)}%). Coba alokasikan 10-20% pendapatan untuk tabungan darurat.`;
-    } else {
-      return `Keuanganmu cukup sehat dengan tingkat tabungan ${context.savingsRate.toFixed(1)}%. Pertahankan kebiasaan baik ini dan pertimbangkan untuk menetapkan target keuangan spesifik.`;
-    }
-  }
-  
-  // Default response
-  return `Berdasarkan data keuangan bulan ${context.month}: Total pendapatan Rp ${context.totalIncome.toLocaleString('id-ID')}, pengeluaran Rp ${context.totalExpense.toLocaleString('id-ID')}, dengan sisa Rp ${context.balance.toLocaleString('id-ID')}. Ada yang bisa saya bantu lebih spesifik?`;
-}
 
 module.exports = router;

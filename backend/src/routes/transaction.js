@@ -83,39 +83,103 @@ router.post("/", authenticateToken, async (req, res) => {
 // Get transaction summary
 router.get("/summary", authenticateToken, async (req, res) => {
   try {
+    const userId = req.user.id;
     const { startDate, endDate } = req.query;
 
-    const transactions = await prisma.transaction.findMany({
+    const whereClause = {
+      userId,
+      date: {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      },
+    };
+
+    // Get current month data
+    const currentMonthTransactions = await prisma.transaction.findMany({
+      where: whereClause,
+    });
+
+    const currentMonthIncome = currentMonthTransactions
+      .filter((t) => t.type === "INCOME")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const currentMonthExpense = currentMonthTransactions
+      .filter((t) => t.type === "EXPENSE")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const currentMonthBalance = currentMonthIncome - currentMonthExpense;
+
+    // Get last month data for comparison
+    const currentStart = new Date(startDate);
+    const currentEnd = new Date(endDate);
+    const daysInMonth = currentEnd.getDate();
+
+    const lastMonthStart = new Date(
+      currentStart.getFullYear(),
+      currentStart.getMonth() - 1,
+      1,
+    );
+    const lastMonthEnd = new Date(
+      currentStart.getFullYear(),
+      currentStart.getMonth() - 1,
+      daysInMonth,
+    );
+
+    const lastMonthTransactions = await prisma.transaction.findMany({
       where: {
-        userId: req.user.id,
+        userId,
         date: {
-          gte: startDate
-            ? new Date(startDate)
-            : new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-          lte: endDate ? new Date(endDate) : new Date(),
+          gte: lastMonthStart,
+          lte: lastMonthEnd,
         },
       },
     });
 
-    const income = transactions
+    const lastMonthIncome = lastMonthTransactions
       .filter((t) => t.type === "INCOME")
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const expense = transactions
+    const lastMonthExpense = lastMonthTransactions
       .filter((t) => t.type === "EXPENSE")
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const balance = income - expense;
+    const lastMonthBalance = lastMonthIncome - lastMonthExpense;
+
+    // Calculate percentage changes
+    const incomeChange =
+      lastMonthIncome > 0
+        ? ((currentMonthIncome - lastMonthIncome) / lastMonthIncome) * 100
+        : 0;
+
+    const expenseChange =
+      lastMonthExpense > 0
+        ? ((currentMonthExpense - lastMonthExpense) / lastMonthExpense) * 100
+        : 0;
+
+    const balanceChange =
+      lastMonthBalance !== 0
+        ? ((currentMonthBalance - lastMonthBalance) /
+            Math.abs(lastMonthBalance)) *
+          100
+        : 0;
 
     res.json({
-      income,
-      expense,
-      balance,
-      totalTransactions: transactions.length,
+      income: currentMonthIncome,
+      expense: currentMonthExpense,
+      balance: currentMonthBalance,
+      totalTransactions: currentMonthTransactions.length,
+      comparison: {
+        lastMonthIncome,
+        lastMonthExpense,
+        lastMonthBalance,
+        incomeChange: parseFloat(incomeChange.toFixed(1)),
+        expenseChange: parseFloat(expenseChange.toFixed(1)),
+        balanceChange: parseFloat(balanceChange.toFixed(1)),
+      },
     });
   } catch (error) {
-    console.error("Get summary error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Summary error:", error);
+    res.status(500).json({ error: "Failed to get summary" });
   }
 });
 
