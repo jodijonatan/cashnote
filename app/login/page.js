@@ -1,11 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI } from "../../lib/api";
-import { Chrome } from "lucide-react";
 import { Mail, Lock, Loader2, ArrowRight, LayoutDashboard } from "lucide-react";
 
-export default function Login() {
+function LoginForm() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -221,5 +220,51 @@ export default function Login() {
         </p>
       </div>
     </div>
+  );
+}
+
+function LoginFormFallback() {
+  return (
+    <div className="min-h-screen bg-[#F8F9FB] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-50 rounded-full blur-[120px] opacity-60" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[30%] h-[30%] bg-blue-50 rounded-full blur-[100px] opacity-60" />
+      </div>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="flex justify-center mb-6">
+          <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-200">
+            <LayoutDashboard className="w-8 h-8 text-white" />
+          </div>
+        </div>
+        <h2 className="text-center text-3xl font-extrabold text-gray-900 tracking-tight">
+          Selamat Datang Kembali
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-500 font-medium">
+          Belum punya akun?{" "}
+          <a
+            href="/register"
+            className="text-indigo-600 hover:text-indigo-500 font-bold transition-colors"
+          >
+            Daftar gratis sekarang
+          </a>
+        </p>
+      </div>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="bg-white py-10 px-6 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 sm:rounded-[32px] sm:px-12 flex justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        </div>
+        <p className="mt-8 text-center text-xs text-gray-400">
+          &copy; 2026 Cashnote. Keamanan data kamu adalah prioritas kami.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={<LoginFormFallback />}>
+      <LoginForm />
+    </Suspense>
   );
 }
