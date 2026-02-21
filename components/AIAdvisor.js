@@ -40,6 +40,11 @@ export default function AIAdvisor() {
       setQuestion("");
     } catch (error) {
       console.error("AI Advisor Error:", error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        authAPI.removeToken();
+        // We don't have router here, but removing token will trigger redirect on the parent page's useEffect
+        window.location.href = "/login";
+      }
       setResponse("Maaf, terjadi kesalahan. Silakan coba lagi nanti.");
     } finally {
       setLoading(false);

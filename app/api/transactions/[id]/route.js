@@ -1,26 +1,6 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import prisma from "@/prisma";
-
-// Middleware to authenticate user
-function authenticateToken(request) {
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return { error: "Access token required", status: 401 };
-  }
-
-  try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "your-secret-key",
-    );
-    return { user: { id: decoded.userId } };
-  } catch (err) {
-    return { error: "Invalid token", status: 403 };
-  }
-}
+import { authenticateToken } from "@/lib/auth";
 
 // PUT - Update transaction
 export async function PUT(request, { params }) {

@@ -1,27 +1,7 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import prisma from "@/prisma";
-
-// Middleware to authenticate user
-function authenticateToken(request) {
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return { error: "Access token required", status: 401 };
-  }
-
-  try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "your-secret-key",
-    );
-    return { user: { userId: decoded.userId } };
-  } catch (err) {
-    return { error: "Invalid token", status: 403 };
-  }
-}
+import { authenticateToken } from "@/lib/auth";
 
 // Initialize Gemini AI
 const genAI = process.env.GEMINI_API_KEY
@@ -37,7 +17,7 @@ export async function POST(request) {
 
   try {
     const { question } = await request.json();
-    const userId = auth.user.userId;
+    const userId = auth.user.id;
 
     console.log("AI Advisor Request:", { question, userId });
 

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { targetAPI } from "../lib/api";
+import { useRouter } from "next/navigation";
+import { targetAPI, authAPI } from "../lib/api";
 import { 
   Target, 
   Plus, 
@@ -26,6 +27,7 @@ export default function FinancialTargets() {
   });
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
     targetAmount: "",
@@ -50,6 +52,10 @@ export default function FinancialTargets() {
       setSummary(summaryResponse.data);
     } catch (error) {
       console.error("Failed to fetch targets:", error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        authAPI.removeToken();
+        router.push("/login");
+      }
     } finally {
       setLoading(false);
     }

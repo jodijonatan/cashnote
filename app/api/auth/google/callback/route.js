@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import prisma from "@/prisma";
+import { generateToken } from "@/lib/auth";
 
 export async function GET(request) {
   try {
@@ -59,11 +59,7 @@ export async function GET(request) {
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "7d" },
-    );
+    const token = generateToken(user);
 
     // Redirect to frontend with token
     return NextResponse.redirect(`${frontendURL}/login?token=${token}`);

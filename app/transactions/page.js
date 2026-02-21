@@ -60,14 +60,24 @@ export default function Transactions() {
   };
 
   useEffect(() => {
+    const token = authAPI.getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     fetchTransactions();
-  }, []);
+  }, [router]);
 
   const fetchTransactions = async () => {
     try {
       const response = await transactionAPI.getTransactions();
       setTransactions(response.data);
     } catch (err) {
+      console.error("Gagal mengambil data transaksi", err);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        authAPI.removeToken();
+        router.push("/login");
+      }
       setError("Gagal mengambil data transaksi");
     } finally {
       setLoading(false);
