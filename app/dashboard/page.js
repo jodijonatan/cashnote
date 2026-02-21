@@ -170,7 +170,7 @@ export default function Dashboard() {
           <div className="p-6 bg-black text-white rounded-2xl shadow-sm">
             <p className="text-sm opacity-70">Total Saldo</p>
             <h2 className="text-3xl font-mono mt-2">
-              {formatCurrency(summary.balance)}
+              {formatCurrency(summary?.balance || 0)}
             </h2>
             <div className="mt-2 text-sm">
               {/* PERBAIKAN: Tambahkan optional chaining (?.) */}
@@ -192,7 +192,7 @@ export default function Dashboard() {
 
           <StatCard
             label="Pemasukan"
-            value={formatCurrency(summary.income)}
+            value={formatCurrency(summary?.income || 0)}
             type="income"
             icon={<ArrowUpRight />}
             // PERBAIKAN: Tambahkan optional chaining
@@ -201,7 +201,7 @@ export default function Dashboard() {
 
           <StatCard
             label="Pengeluaran"
-            value={formatCurrency(summary.expense)}
+            value={formatCurrency(summary?.expense || 0)}
             type="expense"
             icon={<ArrowDownRight />}
             // PERBAIKAN: Tambahkan optional chaining

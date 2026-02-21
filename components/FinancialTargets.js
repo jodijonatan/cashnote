@@ -157,19 +157,19 @@ export default function FinancialTargets() {
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-blue-600" />
               <span className="text-gray-600">
-                Total: {summary.totalTargets}
+                Total: {summary?.totalTargets || 0}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
               <span className="text-gray-600">
-                Selesai: {summary.completedTargets}
+                Selesai: {summary?.completedTargets || 0}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-indigo-600" />
               <span className="text-gray-600">
-                Progress: {summary.overallProgress}%
+                Progress: {summary?.overallProgress || 0}%
               </span>
             </div>
           </div>
